@@ -1,15 +1,56 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Box, Button, Typography, Paper, Stack, IconButton, CircularProgress
+  Box, Button, Typography, Paper, Stack, IconButton, CircularProgress, TextField
 } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DownloadIcon from "@mui/icons-material/Download";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 const SPLIT_TIME_MS = 5 * 60 * 1000;
 
-function App() {
+// --- 認証用コンポーネント ---
+function AuthGate({ onAuthSuccess }) {
+  const [input, setInput] = useState("");
+  // ★ここで好きなパスワードを設定してください
+  const SECRET_PASSWORD = "sugano1111"; 
+
+  const handleCheck = () => {
+    if (input === SECRET_PASSWORD) {
+      sessionStorage.setItem("app_is_authorized", "true");
+      onAuthSuccess();
+    } else {
+      alert("合言葉が違います");
+      setInput("");
+    }
+  };
+
+  return (
+    <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f0f2f5" }}>
+      <Paper elevation={3} sx={{ p: 4, borderRadius: "20px", textAlign: "center", width: "100%", maxWidth: "350px" }}>
+        <LockOutlinedIcon sx={{ fontSize: 40, color: "#3182ce", mb: 2 }} />
+        <Typography variant="h6" fontWeight="bold" gutterBottom>認証が必要です</Typography>
+        <TextField 
+          fullWidth 
+          type="password" 
+          label="合言葉" 
+          variant="outlined" 
+          value={input} 
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
+          sx={{ mb: 2, mt: 2 }}
+        />
+        <Button fullWidth variant="contained" onClick={handleCheck} sx={{ borderRadius: "10px", py: 1.5, backgroundColor: "#3182ce" }}>
+          入室する
+        </Button>
+      </Paper>
+    </Box>
+  );
+}
+
+// --- メインのアプリコンテンツ（元の App の中身） ---
+function AppContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [history, setHistory] = useState(() => {
     const saved = localStorage.getItem("minutes_history_v12");
@@ -22,7 +63,7 @@ function App() {
 
   const recognitionRef = useRef(null);
   const historyEndRef = useRef(null);
-  const mainScrollRef = useRef(null); // メイン画面のスクロール用
+  const mainScrollRef = useRef(null);
   const processedIndexRef = useRef(-1);
   const isRestartingRef = useRef(false);
 
@@ -35,14 +76,11 @@ function App() {
   const isRecordingRef = useRef(isRecording);
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
 
-  // 履歴保存 & 履歴の自動スクロール
   useEffect(() => {
     localStorage.setItem("minutes_history_v12", JSON.stringify(history));
     historyEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [history]);
 
-  // 【追加】メイン入力エリアの自動スクロール
-  // interimText（認識中の文字）が変わるたびに一番下へ
   useEffect(() => {
     if (mainScrollRef.current) {
       mainScrollRef.current.scrollTo({
@@ -91,9 +129,7 @@ function App() {
       let latestPhrase = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        // 「。」を削除
         const cleanTranscript = event.results[i][0].transcript.replace(/。/g, '');
-
         if (event.results[i].isFinal) {
           if (i <= processedIndexRef.current) continue;
           newFinalText += cleanTranscript;
@@ -105,9 +141,7 @@ function App() {
         }
       }
 
-      if (newFinalText) {
-        setCurrentText(prev => prev + newFinalText);
-      }
+      if (newFinalText) setCurrentText(prev => prev + newFinalText);
       setInterimText(currentInterim);
 
       const now = Date.now();
@@ -127,9 +161,7 @@ function App() {
     recognition.onend = () => { if (isRecordingRef.current) recognition.start(); };
     recognitionRef.current = recognition;
 
-    return () => {
-      recognition.stop();
-    };
+    return () => recognition.stop();
   }, []);
 
   const toggleRecording = () => {
@@ -193,23 +225,12 @@ function App() {
       {/* 右：メインエリア */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh" }}>
         <Box sx={{ flex: 1, p: 4, display: "flex", justifyContent: "center", overflow: "hidden" }}>
-          <Paper 
-            ref={mainScrollRef} // スクロール対象を指定
-            elevation={0} 
-            sx={{ 
-              width: "100%", maxWidth: "700px", height: "100%", 
-              p: 4, borderRadius: "24px", border: "2px solid",
-              borderColor: progress >= 100 ? "#ed8936" : "#eee", backgroundColor: "#fff",
-              overflowY: "auto", transition: "border-color 0.3s"
-            }}
-          >
+          <Paper ref={mainScrollRef} elevation={0} sx={{ width: "100%", maxWidth: "700px", height: "100%", p: 4, borderRadius: "24px", border: "2px solid", borderColor: progress >= 100 ? "#ed8936" : "#eee", backgroundColor: "#fff", overflowY: "auto", transition: "border-color 0.3s" }}>
             <Typography sx={{ fontSize: "1.5rem", lineHeight: 1.8, color: "#1a202c", whiteSpace: "pre-wrap" }}>
               {currentText}<span style={{ color: "#a0aec0" }}>{interimText}</span>
             </Typography>
           </Paper>
         </Box>
-
-        {/* 操作エリア */}
         <Box sx={{ p: 4, display: "flex", justifyContent: "center", backgroundColor: "#fff", borderTop: "1px solid #e0e0e0", flexShrink: 0 }}>
           <Box sx={{ position: 'relative', display: 'inline-flex' }}>
             <CircularProgress variant="determinate" value={progress} size={100} thickness={4} sx={{ color: progress >= 100 ? "#ed8936" : "#3182ce", position: 'absolute', top: -10, left: -10 }} />
@@ -223,4 +244,16 @@ function App() {
   );
 }
 
-export default App;
+// --- 最終的な App コンポーネント ---
+export default function App() {
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    // タブを開いている間だけ有効な認証チェック
+    if (sessionStorage.getItem("app_is_authorized") === "true") {
+      setAuthorized(true);
+    }
+  }, []);
+
+  return authorized ? <AppContent /> : <AuthGate onAuthSuccess={() => setAuthorized(true)} />;
+}
