@@ -13,7 +13,7 @@ import { keyframes } from "@emotion/react";
 // --- 設定項目 ---
 const SPLIT_TIME_MS = 5 * 60 * 1000; // ログを区切る時間（5分）
 const SPLIT_TIME_TEXT = "5分";
-const APP_PASSWORD = "password123"; // ★ここに好きなパスワードを設定してください★
+const APP_PASSWORD = "1234"; // ★ここに好きなパスワードを設定してください★
 // ----------------
 
 // 波紋アニメーションの定義
@@ -244,7 +244,7 @@ function App() {
           a.click();
           URL.revokeObjectURL(url);
           // 親切なメッセージを表示
-          setDownloadMessage("音声ファイルをダウンロードしました！\nこのファイルをGeminiに渡して議事録を作成しましょう。");
+          setDownloadMessage("音声ファイルをダウンロードしました！");
         };
 
         mediaRecorder.start();
